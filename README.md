@@ -2,6 +2,69 @@
 
 Ralph is an autonomous development loop system that uses the Codex CLI to iteratively implement features from a PRD (Product Requirements Document).
 
+## Installation
+
+This repository is designed to be **reused across projects** as tooling (prompts, scripts, loops), not copied around.
+
+### Recommended: install as a Git submodule
+
+Using a submodule lets you:
+
+* reuse the same Ralph tooling across multiple projects
+* keep a clean separation between project code and automation
+* update the tooling in one place when it evolves
+
+From the root of your project:
+
+```bash
+git submodule add \
+  -b codex/update-to-use-codex-cli-instead-of-claude \
+  https://github.com/Loa212/ralph \
+  .ralph
+```
+
+Then commit:
+
+```bash
+git add .ralph .gitmodules
+git commit -m "chore: add ralph tooling as submodule"
+```
+
+This will place the Ralph tooling under `.ralph/` while keeping its own Git history intact.
+
+To update the tooling later:
+
+```bash
+cd .ralph
+git pull
+cd ..
+git add .ralph
+git commit -m "chore: update ralph tooling"
+```
+
+---
+
+### Alternative: copy the files directly (not recommended)
+
+You may also copy the contents of this repository directly into your project if you prefer not to use submodules.
+
+However, this approach:
+
+* removes the update path
+* makes it harder to keep multiple projects in sync
+* is discouraged unless you intentionally want to fork/customize the tooling per project
+
+---
+
+### Notes
+
+* The `.ralph/` directory is tooling only — it does not affect runtime code.
+* Specs (`specs/`) and plans (`IMPLEMENTATION_PLAN.md`) live in the host project.
+* Git submodules are **recommended**, but not required.
+
+---
+
+
 ## Quick Start
 
 ```bash
