@@ -11,7 +11,7 @@ source "$SCRIPT_DIR/lib/circuit_breaker.sh"
 source "$SCRIPT_DIR/lib/response_analyzer.sh"
 
 # Configuration
-CLAUDE_CMD="claude --dangerously-skip-permissions"
+CODEX_CMD="codex --dangerously-skip-permissions"
 
 # Use gtimeout on macOS (from brew install coreutils), timeout on Linux
 if command -v gtimeout &>/dev/null; then
@@ -23,7 +23,7 @@ else
     exit 1
 fi
 MAX_CALLS_PER_HOUR=${MAX_CALLS_PER_HOUR:-100}
-CLAUDE_TIMEOUT_MINUTES=${CLAUDE_TIMEOUT_MINUTES:-20}
+CODEX_TIMEOUT_MINUTES=${CODEX_TIMEOUT_MINUTES:-20}
 MAX_ITERATIONS=${MAX_ITERATIONS:-0}  # 0 = unlimited
 COMPLETE_TOKEN=${COMPLETE_TOKEN:-"<promise>COMPLETE</promise>"}
 USE_TMUX=false
@@ -45,7 +45,7 @@ Options:
     -m, --monitor           Start with tmux session and live monitor
     -n, --max-iterations N  Max loop iterations (default: 0 = unlimited)
     -c, --calls NUM         Max calls per hour (default: $MAX_CALLS_PER_HOUR)
-    -t, --timeout MIN       Claude timeout in minutes (default: $CLAUDE_TIMEOUT_MINUTES)
+    -t, --timeout MIN       Codex timeout in minutes (default: $CODEX_TIMEOUT_MINUTES)
     --complete-token STR    Token that signals project completion
                             (default: $COMPLETE_TOKEN)
     -s, --status            Show project status and exit
@@ -63,7 +63,7 @@ Examples:
 Environment Variables:
     MAX_ITERATIONS          Override max iterations
     MAX_CALLS_PER_HOUR      Override rate limit
-    CLAUDE_TIMEOUT_MINUTES  Override Claude timeout
+    CODEX_TIMEOUT_MINUTES  Override Codex timeout
     COMPLETE_TOKEN          Override completion token
 
 HELPEOF
@@ -383,24 +383,24 @@ EOF
 
 
 
-# Execute Claude Code with FULL context
+# Execute Codex CLI with FULL context
 # Returns: 0=success, 1=error, 2=project complete, 3=API limit, 4=timeout (after retries exhausted), 5=usage limit (with reset time)
-execute_claude() {
+execute_codex() {
     local project_dir=$1
     local loop_count=$2
     
     local max_timeout_retries=2  # Retry up to 2 more times on timeout (3 total attempts)
     local timeout_attempt=0
     
-    log "LOOP" "Executing Claude Code (Loop #$loop_count)"
+    log "LOOP" "Executing Codex CLI (Loop #$loop_count)"
     
     # Generate prompt (not saved to disk)
     local prompt_content
     prompt_content=$(generate_full_prompt "$project_dir")
     
-    local timeout_seconds=$((CLAUDE_TIMEOUT_MINUTES * 60))
+    local timeout_seconds=$((CODEX_TIMEOUT_MINUTES * 60))
     
-    # Change to repo root for Claude
+    # Change to repo root for Codex
     cd "$REPO_ROOT"
     
     # Retry loop for timeout handling
@@ -408,21 +408,21 @@ execute_claude() {
         timeout_attempt=$((timeout_attempt + 1))
         
         local timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
-        local output_file="$project_dir/logs/claude_${timestamp}.log"
+        local output_file="$project_dir/logs/codex_${timestamp}.log"
         
         if [[ $timeout_attempt -gt 1 ]]; then
-            log "INFO" "⏳ Timeout retry $((timeout_attempt - 1))/$max_timeout_retries (timeout: ${CLAUDE_TIMEOUT_MINUTES}m)..."
+            log "INFO" "⏳ Timeout retry $((timeout_attempt - 1))/$max_timeout_retries (timeout: ${CODEX_TIMEOUT_MINUTES}m)..."
         else
-            log "INFO" "⏳ Starting Claude (timeout: ${CLAUDE_TIMEOUT_MINUTES}m)..."
+            log "INFO" "⏳ Starting Codex (timeout: ${CODEX_TIMEOUT_MINUTES}m)..."
         fi
         
-        # Execute Claude
-        if echo "$prompt_content" | $TIMEOUT_CMD ${timeout_seconds}s $CLAUDE_CMD > "$output_file" 2>&1; then
-            log "SUCCESS" "✅ Claude execution completed"
+        # Execute Codex
+        if echo "$prompt_content" | $TIMEOUT_CMD ${timeout_seconds}s $CODEX_CMD > "$output_file" 2>&1; then
+            log "SUCCESS" "✅ Codex execution completed"
             
             # Check for project completion token
             if grep -q "$COMPLETE_TOKEN" "$output_file"; then
-                log "SUCCESS" "🎉 Claude signaled PROJECT COMPLETE!"
+                log "SUCCESS" "🎉 Codex signaled PROJECT COMPLETE!"
                 return 2  # Special code for project complete
             fi
             
@@ -443,10 +443,10 @@ execute_claude() {
             # Log analysis
             log_analysis_summary "$project_dir"
             
-            # Claude updates prd.json directly - no need to mark stories here
+            # Codex updates prd.json directly - no need to mark stories here
             # Just log completion status for visibility
             if [[ "$exit_signal" == "true" ]]; then
-                log "SUCCESS" "📝 Claude signaled loop completion"
+                log "SUCCESS" "📝 Codex signaled loop completion"
             fi
             
             return 0
@@ -454,30 +454,30 @@ execute_claude() {
             local exit_code=$?
             
             # Check for "out of extra usage" first (before timeout retry logic)
-            # This catches cases where Claude showed the limit message before we timed out
+            # This catches cases where Codex showed the limit message before we timed out
             if check_usage_limit "$output_file"; then
-                log "WARN" "🚫 Claude out of extra usage - detected limit message"
+                log "WARN" "🚫 Codex out of extra usage - detected limit message"
                 return 5  # Special code for usage limit with reset time
             fi
             
             # Check for timeout (exit code 124)
             if [[ $exit_code -eq 124 ]]; then
                 if [[ $timeout_attempt -le $max_timeout_retries ]]; then
-                    log "WARN" "⏰ Claude timed out after ${CLAUDE_TIMEOUT_MINUTES} minutes (attempt $timeout_attempt/$((max_timeout_retries + 1)))"
+                    log "WARN" "⏰ Codex timed out after ${CODEX_TIMEOUT_MINUTES} minutes (attempt $timeout_attempt/$((max_timeout_retries + 1)))"
                     log "INFO" "Retrying in 10 seconds..."
                     sleep 10
                     continue  # Retry
                 else
-                    log "ERROR" "❌ Claude timed out after ${CLAUDE_TIMEOUT_MINUTES} minutes (all $((max_timeout_retries + 1)) attempts exhausted)"
+                    log "ERROR" "❌ Codex timed out after ${CODEX_TIMEOUT_MINUTES} minutes (all $((max_timeout_retries + 1)) attempts exhausted)"
                     return 4  # Special code for timeout after retries
                 fi
             else
-                log "ERROR" "❌ Claude execution failed with code $exit_code"
+                log "ERROR" "❌ Codex execution failed with code $exit_code"
             fi
             
             # Check for 5-hour API limit
             if grep -qi "5.*hour.*limit\|limit.*reached\|usage.*limit" "$output_file" 2>/dev/null; then
-                log "ERROR" "🚫 Claude API 5-hour usage limit reached"
+                log "ERROR" "🚫 Codex API 5-hour usage limit reached"
                 return 3  # Special code for API limit
             fi
             
@@ -513,8 +513,8 @@ setup_tmux() {
     if [[ $MAX_CALLS_PER_HOUR -ne 100 ]]; then
         start_cmd="$start_cmd -c $MAX_CALLS_PER_HOUR"
     fi
-    if [[ $CLAUDE_TIMEOUT_MINUTES -ne 20 ]]; then
-        start_cmd="$start_cmd -t $CLAUDE_TIMEOUT_MINUTES"
+    if [[ $CODEX_TIMEOUT_MINUTES -ne 20 ]]; then
+        start_cmd="$start_cmd -t $CODEX_TIMEOUT_MINUTES"
     fi
     if [[ "$COMPLETE_TOKEN" != "<promise>COMPLETE</promise>" ]]; then
         start_cmd="$start_cmd --complete-token '$COMPLETE_TOKEN'"
@@ -635,7 +635,7 @@ main_loop() {
     export LOG_FILE="$project_dir/logs/ralph_$(date '+%Y%m%d').log"
     
     log "SUCCESS" "🚀 Ralph starting for project: $project_name"
-    log "INFO" "Max calls/hour: $MAX_CALLS_PER_HOUR | Timeout: ${CLAUDE_TIMEOUT_MINUTES}m"
+    log "INFO" "Max calls/hour: $MAX_CALLS_PER_HOUR | Timeout: ${CODEX_TIMEOUT_MINUTES}m"
     if [[ $MAX_ITERATIONS -gt 0 ]]; then
         log "INFO" "Max iterations: $MAX_ITERATIONS"
     else
@@ -691,7 +691,7 @@ main_loop() {
             continue
         fi
         
-        # Check if all stories are complete BEFORE running Claude
+        # Check if all stories are complete BEFORE running Codex
         local incomplete=$(count_incomplete_stories "$project_dir/prd.json")
         if [[ "$incomplete" -eq 0 ]]; then
             log "SUCCESS" "🎉 All stories completed!"
@@ -709,10 +709,10 @@ main_loop() {
         local calls=$(increment_call_counter "$project_dir")
         log "INFO" "API call $calls/$MAX_CALLS_PER_HOUR this hour"
         
-        # Execute Claude with FULL context
+        # Execute Codex with FULL context
         # Capture exit code manually to prevent set -e from exiting on non-zero
         local exec_result=0
-        execute_claude "$project_dir" "$loop_count" || exec_result=$?
+        execute_codex "$project_dir" "$loop_count" || exec_result=$?
         
         if [[ $exec_result -eq 0 ]]; then
             update_status "$project_dir" "$loop_count" "success" ""
@@ -729,7 +729,7 @@ main_loop() {
             
             # Find the latest log file and wait for reset
             local latest_log
-            latest_log=$(ls -t "$project_dir/logs/claude_"*.log 2>/dev/null | head -1) || true
+            latest_log=$(ls -t "$project_dir/logs/codex_"*.log 2>/dev/null | head -1) || true
             
             if [[ -n "$latest_log" ]]; then
                 wait_for_usage_reset "$latest_log" || sleep 3600
@@ -831,7 +831,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -t|--timeout)
-            CLAUDE_TIMEOUT_MINUTES="$2"
+            CODEX_TIMEOUT_MINUTES="$2"
             shift 2
             ;;
         --complete-token)

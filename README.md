@@ -1,6 +1,6 @@
 # Ralph - Autonomous AI Development Loop
 
-Ralph is an autonomous development loop system that uses Claude Code to iteratively implement features from a PRD (Product Requirements Document).
+Ralph is an autonomous development loop system that uses the Codex CLI to iteratively implement features from a PRD (Product Requirements Document).
 
 ## Quick Start
 
@@ -23,7 +23,7 @@ code ralph/projects/my-feature/prd.md
 ```bash
 # Install dependencies
 brew install jq tmux
-npm install -g @anthropic-ai/claude-code
+npm install -g @openai/codex-cli
 ```
 
 ## Commands
@@ -37,7 +37,7 @@ Create a new project from template.
 ```
 
 ### `./ralph/convert.sh <project-name>`
-Convert your PRD.md to actionable JSON tasks using Claude.
+Convert your PRD.md to actionable JSON tasks using Codex.
 
 ```bash
 ./ralph/convert.sh signals
@@ -65,7 +65,7 @@ Run the autonomous development loop.
 Options:
 - `-m, --monitor` - Start with tmux session and live monitor
 - `-c, --calls NUM` - Max calls per hour (default: 100)
-- `-t, --timeout MIN` - Claude timeout in minutes (default: 15)
+- `-t, --timeout MIN` - Codex timeout in minutes (default: 15)
 - `-s, --status` - Show project status and exit
 - `-r, --reset` - Reset circuit breaker
 
@@ -85,7 +85,7 @@ Live status dashboard (auto-started with `--monitor`).
 │     Human-readable requirements document                        │
 │                                                                 │
 │  2. Convert to JSON (prd.json)                                  │
-│     Claude breaks down PRD into actionable tasks                │
+│     Codex breaks down PRD into actionable tasks                │
 │                                                                 │
 │  3. Ralph Loop                                                  │
 │     ┌─────────────────────────────────────────────────────┐     │
@@ -93,7 +93,7 @@ Live status dashboard (auto-started with `--monitor`).
 │     │  ↓                                                  │     │
 │     │  Generate prompt with story + context               │     │
 │     │  ↓                                                  │     │
-│     │  Run Claude Code                                    │     │
+│     │  Run Codex CLI                                     │     │
 │     │  ↓                                                  │     │
 │     │  Analyze response (check status block)              │     │
 │     │  ↓                                                  │     │
@@ -162,7 +162,7 @@ When running with `--monitor`:
 
 - **Rate Limiting**: Max 100 calls/hour (configurable)
 - **Circuit Breaker**: Auto-stops after repeated failures
-- **Exit Detection**: Stops when Claude signals completion
+- **Exit Detection**: Stops when Codex signals completion
 - **Branch Isolation**: Each feature runs on its own git branch
 
 ## Learnings System
@@ -240,5 +240,5 @@ ralph/
 ### Rate limit hit
 Ralph automatically waits for the next hour. You can detach with `Ctrl+B, D` and come back later.
 
-### Claude not responding
+### Codex not responding
 Check the logs in `ralph/projects/<project>/logs/` for details.

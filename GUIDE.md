@@ -1,18 +1,18 @@
-# Running Claude Code in a Loop
+# Running Codex CLI in a Loop
 
-A guide to building an autonomous AI development loop using Claude Code CLI.
+A guide to building an autonomous AI development loop using Codex CLI.
 
 ---
 
 ## What This Is
 
-A bash script system that runs Claude Code repeatedly until a task is complete. It reads a list of tasks (PRD), picks the next incomplete one, runs Claude, and loops until everything is done.
+A bash script system that runs Codex repeatedly until a task is complete. It reads a list of tasks (PRD), picks the next incomplete one, runs Codex, and loops until everything is done.
 
 ```
 ┌─────────────────────────────┐
 │  1. Read task list          │
 │  2. Pick next incomplete    │
-│  3. Run Claude Code         │
+│  3. Run Codex CLI         │
 │  4. Check if done           │
 │  5. If not done → go to 1   │
 └─────────────────────────────┘
@@ -26,27 +26,27 @@ A bash script system that runs Claude Code repeatedly until a task is complete. 
 # Install dependencies
 brew install jq tmux coreutils
 
-# Install Claude Code CLI
-npm install -g @anthropic-ai/claude-code
+# Install Codex CLI
+npm install -g @openai/codex-cli
 
 # Verify
-claude --version
+codex --version
 ```
 
 ---
 ## Ralph loop is just a loop
 
-At its core, Ralph is a `while` loop that runs Claude Code repeatedly until a task is complete.
+At its core, Ralph is a `while` loop that runs Codex repeatedly until a task is complete.
 
 ```bash
 while true; do
 
-    response=$(echo "Continue working on the feature. Say DONE when finished." | claude --dangerously-skip-permissions 2>&1)
+    response=$(echo "Continue working on the feature. Say DONE when finished." | codex --dangerously-skip-permissions 2>&1)
 
     echo "$response"
 
     if echo "$response" | grep -q "DONE"; then
-        echo "Claude says it's done!"
+        echo "Codex says it's done!"
         break
     fi
 
@@ -54,7 +54,7 @@ while true; do
 done
 ```
 
-This works. But it has problems: no timeout if Claude hangs, no rate limiting, no way to detect if Claude is stuck. The following layers add these safeguards one at a time.
+This works. But it has problems: no timeout if Codex hangs, no rate limiting, no way to detect if Codex is stuck. The following layers add these safeguards one at a time.
 
 ---
 
@@ -65,12 +65,12 @@ Instead of checking for "DONE", let's track tasks in a JSON file. Add a `prd.jso
 ```bash
 set -e
 
-# Run Claude with a prompt, check output, repeat
+# Run Codex with a prompt, check output, repeat
 while true; do
-    echo "Running Claude..."
+    echo "Running Codex..."
 
-    # Pipe prompt to Claude
-    echo "Implement the next task from prd.json" | claude --dangerously-skip-permissions > output.log 2>&1
+    # Pipe prompt to Codex
+    echo "Implement the next task from prd.json" | codex --dangerously-skip-permissions > output.log 2>&1
 
     # Check if all tasks are done
     incomplete=$(jq '[.userStories[] | select(.passes == false)] | length' prd.json)
@@ -106,14 +106,14 @@ The `prd.json` file tracks each task:
 }
 ```
 
-- `--dangerously-skip-permissions`: Runs Claude without asking for confirmation on file edits/commands. Required for autonomous operation.
+- `--dangerously-skip-permissions`: Runs Codex without asking for confirmation on file edits/commands. Required for autonomous operation.
 - `jq`: Parses the JSON to count incomplete tasks. The loop exits when all stories have `passes: true`.
 
 --
 
 ## Layer 3: Add Completion Token
 
-Claude can signal it's done by outputting a special token. This gives Claude explicit control over when to stop.
+Codex can signal it's done by outputting a special token. This gives Codex explicit control over when to stop.
 
 ```bash
 #!/bin/bash
@@ -123,21 +123,21 @@ TIMEOUT_MINUTES=15
 COMPLETE_TOKEN="<COMPLETE>"
 
 while true; do
-    echo "Running Claude..."
+    echo "Running Codex..."
 
     # Run with timeout, capture output
-    if gtimeout $((TIMEOUT_MINUTES * 60))s bash -c 'echo "Implement next task. Output $COMPLETE_TOKEN when all tasks are done." | claude --dangerously-skip-permissions' > output.log 2>&1; then
-        echo "Claude finished"
+    if gtimeout $((TIMEOUT_MINUTES * 60))s bash -c 'echo "Implement next task. Output $COMPLETE_TOKEN when all tasks are done." | codex --dangerously-skip-permissions' > output.log 2>&1; then
+        echo "Codex finished"
     else
         if [[ $? -eq 124 ]]; then
-            echo "Claude timed out, retrying..."
+            echo "Codex timed out, retrying..."
             continue
         fi
     fi
 
     # Check for completion token
     if grep -q "$COMPLETE_TOKEN" output.log; then
-        echo "Claude signaled completion!"
+        echo "Codex signaled completion!"
         break
     fi
 
@@ -150,14 +150,14 @@ done
 ```
 
 Now there are two exit conditions:
-1. Claude outputs `<COMPLETE>` - it decided it's done
+1. Codex outputs `<COMPLETE>` - it decided it's done
 2. All tasks in `prd.json` have `passes: true` - fallback check
 
 ---
 
 ## Layer 4: Add Circuit Breaker
 
-Detect when Claude is stuck (no progress, same error repeating).
+Detect when Codex is stuck (no progress, same error repeating).
 
 ```bash
 # Track in a file
@@ -179,7 +179,7 @@ record_result() {
     fi
 }
 
-# After each Claude run
+# After each Codex run
 files_modified=$(git diff --name-only | wc -l)
 record_result "$files_modified"
 ```
@@ -195,7 +195,7 @@ Full circuit breaker tracks:
 
 ## Layer 2: Add Timeout
 
-Claude can hang. Add a timeout.
+Codex can hang. Add a timeout.
 
 ```bash
 #!/bin/bash
@@ -204,17 +204,17 @@ set -e
 TIMEOUT_MINUTES=15
 
 while true; do
-    echo "Running Claude (timeout: ${TIMEOUT_MINUTES}m)..."
+    echo "Running Codex (timeout: ${TIMEOUT_MINUTES}m)..."
 
     # gtimeout on macOS, timeout on Linux
-    if gtimeout $((TIMEOUT_MINUTES * 60))s bash -c 'echo "Implement next task" | claude --dangerously-skip-permissions' > output.log 2>&1; then
-        echo "Claude finished"
+    if gtimeout $((TIMEOUT_MINUTES * 60))s bash -c 'echo "Implement next task" | codex --dangerously-skip-permissions' > output.log 2>&1; then
+        echo "Codex finished"
     else
         if [[ $? -eq 124 ]]; then
-            echo "Claude timed out, retrying..."
+            echo "Codex timed out, retrying..."
             continue
         fi
-        echo "Claude failed"
+        echo "Codex failed"
     fi
 
     # Check completion
@@ -230,7 +230,7 @@ done
 
 ## Layer 5: The Prompt
 
-Claude needs context. Generate a prompt with:
+Codex needs context. Generate a prompt with:
 
 ```bash
 generate_prompt() {
@@ -257,7 +257,7 @@ EOF
 }
 
 # Use it
-generate_prompt | claude --dangerously-skip-permissions
+generate_prompt | codex --dangerously-skip-permissions
 ```
 
 ---
@@ -296,7 +296,7 @@ Fields:
 - `acceptance`: Definition of "done"
 - `priority`: Lower = do first
 - `passes`: false until done
-- `notes`: Claude fills with learnings
+- `notes`: Codex fills with learnings
 
 ---
 
@@ -317,7 +317,7 @@ Show usage limits based on plan.
 
 ### Step 2: Have AI Interview You
 
-Ask Claude to interview you about the feature:
+Ask Codex to interview you about the feature:
 
 ```
 I want to build [feature]. Ask me clarifying questions
@@ -333,7 +333,7 @@ Questions it might ask:
 
 ### Step 3: Convert to PRD
 
-After the interview, ask Claude to write a PRD:
+After the interview, ask Codex to write a PRD:
 
 ```
 Based on our conversation, write a detailed PRD
@@ -342,7 +342,7 @@ following this template: [paste prd-template.md]
 
 ### Step 4: Convert PRD to JSON
 
-Use Claude to convert the markdown PRD to structured JSON:
+Use Codex to convert the markdown PRD to structured JSON:
 
 ```bash
 #!/bin/bash
@@ -383,7 +383,7 @@ echo "$prd_content" >> /tmp/convert_prompt.txt
 echo -e "\n\nOutput only valid JSON, no explanation." >> /tmp/convert_prompt.txt
 
 # Run conversion
-claude --print < /tmp/convert_prompt.txt > prd.json
+codex --print < /tmp/convert_prompt.txt > prd.json
 ```
 
 ---
@@ -439,7 +439,7 @@ code ralph/projects/my-feature/prd.md
 The loop stops when:
 
 1. **All stories pass**: `passes: true` for all items
-2. **Complete token**: Claude outputs `<promise>COMPLETE</promise>`
+2. **Complete token**: Codex outputs `<promise>COMPLETE</promise>`
 3. **Circuit breaker opens**: No progress for 3 loops, or same error 5 times
 4. **Rate limit**: Waits for next hour, then continues
 5. **Max iterations**: If `-n 10` flag set
@@ -494,7 +494,7 @@ record_result() {
 ## Tips
 
 1. **Start small**: First PRD should be 5-10 stories max
-2. **Clear acceptance criteria**: Claude needs to know when it's done
+2. **Clear acceptance criteria**: Codex needs to know when it's done
 3. **Check the logs**: `ralph/projects/<name>/logs/`
 4. **Reset if stuck**: `./ralph/start.sh <name> --reset`
 5. **Priority matters**: Lower number = done first
@@ -503,10 +503,10 @@ record_result() {
 
 ## Troubleshooting
 
-**Claude not responding**
+**Codex not responding**
 ```bash
 # Check logs
-tail -f ralph/projects/my-feature/logs/claude_*.log
+tail -f ralph/projects/my-feature/logs/codex_*.log
 ```
 
 **Circuit breaker opened**
@@ -524,7 +524,7 @@ The script waits automatically. Detach with `Ctrl+B, D` if using tmux.
 
 The core idea is simple:
 1. Define tasks as JSON
-2. Loop: run Claude, check if done
+2. Loop: run Codex, check if done
 3. Add safety: timeout, rate limit, circuit breaker
 4. Let it run
 
@@ -533,8 +533,8 @@ The PRD is the key. Good task breakdown = good results.
 
 
 gotchas:
-add playwright mcp to claude:
-claude mcp add playwright npx @playwright/mcp@latest
+add playwright mcp to codex:
+codex mcp add playwright npx @playwright/mcp@latest
 
 Inttall this on root:
 npx playwright@latest install chrome

@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Ralph Response Analyzer - Analyzes Claude Code output
+# Ralph Response Analyzer - Analyzes Codex CLI output
 # Detects completion signals, errors, and progress
 
 # Analysis result file
 ANALYSIS_FILE=".last_analysis.json"
 
-# Analyze Claude Code response
+# Analyze Codex CLI response
 analyze_response() {
     local output_file=$1
     local project_dir=$2
@@ -136,7 +136,7 @@ should_exit_gracefully() {
     local exit_signal=$(jq -r '.exit_signal' "$analysis_file")
     local completion_signals=$(jq -r '.completion_signals' "$analysis_file")
     
-    # Exit if Claude signaled completion
+    # Exit if Codex signaled completion
     if [[ "$exit_signal" == "true" ]]; then
         echo "exit_signal"
         return 0

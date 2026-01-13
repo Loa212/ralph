@@ -3,7 +3,7 @@
 **Version:** 1.0  
 **Date:** 2026-01-12  
 **Status:** Draft  
-**Author:** Kamil / Claude
+**Author:** Kamil / Codex
 
 ---
 

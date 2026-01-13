@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Ralph Convert - Convert PRD.md to prd.json and requirements.md using Claude
+# Ralph Convert - Convert PRD.md to prd.json and requirements.md using Codex
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/utils.sh"
 
-CLAUDE_CMD="claude --dangerously-skip-permissions"
+CODEX_CMD="codex --dangerously-skip-permissions"
 
 show_help() {
     cat << HELPEOF
@@ -23,7 +23,7 @@ Examples:
 
 This will:
 1. Read ralph/projects/<project-name>/prd.md
-2. Use Claude to convert it to:
+2. Use Codex to convert it to:
    - prd.json (actionable user stories)
    - requirements.md (technical specifications)
 
@@ -136,21 +136,21 @@ main() {
     fi
 
     log "INFO" "Converting PRD to tasks for project: $project_name"
-    log "INFO" "Claude will edit prd.json and requirements.md directly..."
+    log "INFO" "Codex will edit prd.json and requirements.md directly..."
 
     # Create temp file with conversion prompt
     local temp_prompt=$(mktemp)
     create_conversion_prompt "$project_name" "$project_dir" > "$temp_prompt"
 
-    # Create log file for Claude output
+    # Create log file for Codex output
     local timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
     local output_file="$project_dir/logs/convert_${timestamp}.log"
     mkdir -p "$project_dir/logs"
 
-    log "INFO" "Running Claude (output: $output_file)..."
+    log "INFO" "Running Codex (output: $output_file)..."
 
-    # Run Claude - redirect output to log file
-    if $CLAUDE_CMD < "$temp_prompt" > "$output_file" 2>&1; then
+    # Run Codex - redirect output to log file
+    if $CODEX_CMD < "$temp_prompt" > "$output_file" 2>&1; then
         # Verify files were updated
         local story_count=0
         if [[ -f "$json_file" ]]; then
@@ -187,7 +187,7 @@ main() {
             echo "  cat $req_file"
         fi
     else
-        log "ERROR" "Claude conversion failed"
+        log "ERROR" "Codex conversion failed"
         exit 1
     fi
 

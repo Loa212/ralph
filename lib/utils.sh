@@ -188,7 +188,7 @@ EOF
 
 # Parse reset time from "You're out of extra usage · resets 3am (Asia/Makassar)" message
 # Returns: seconds to wait until reset time, or empty if can't parse
-# Assumes the script runs in the same timezone as reported by Claude
+# Assumes the script runs in the same timezone as reported by Codex
 parse_usage_reset_time() {
     local output_file=$1
     
@@ -246,7 +246,7 @@ parse_usage_reset_time() {
     return 0
 }
 
-# Wait for Claude usage limit to reset with countdown
+# Wait for Codex usage limit to reset with countdown
 # Usage: wait_for_usage_reset <output_file>
 wait_for_usage_reset() {
     local output_file=$1
@@ -267,7 +267,7 @@ wait_for_usage_reset() {
     # Add 60 second buffer after reset time to be safe
     wait_seconds=$((wait_seconds + 60))
     
-    log "WARN" "🚫 Claude usage limit reached"
+    log "WARN" "🚫 Codex usage limit reached"
     log "INFO" "⏰ Reset time: ${reset_info:-unknown}"
     log "INFO" "💤 Waiting $(format_duration $wait_seconds) until reset (+60s buffer)..."
     
@@ -290,7 +290,7 @@ wait_for_usage_reset() {
     return 0
 }
 
-# Check if output indicates Claude usage limit
+# Check if output indicates Codex usage limit
 check_usage_limit() {
     local output_file=$1
     grep -qi "out of extra usage\|You're out of extra usage" "$output_file" 2>/dev/null
@@ -300,8 +300,8 @@ check_usage_limit() {
 check_dependencies() {
     local missing=()
     
-    if ! command_exists "claude"; then
-        missing+=("claude (Claude Code CLI)")
+    if ! command_exists "codex"; then
+        missing+=("codex (Codex CLI)")
     fi
     
     if ! command_exists "jq"; then
@@ -320,7 +320,7 @@ check_dependencies() {
         echo ""
         echo "Install with:"
         echo "  brew install jq tmux"
-        echo "  npm install -g @anthropic-ai/claude-code"
+        echo "  npm install -g @openai/codex-cli"
         return 1
     fi
     
