@@ -22,7 +22,7 @@ code ralph/projects/my-feature/prd.md
 
 ```bash
 # Install dependencies
-brew install jq tmux
+brew install jq tmux coreutils
 npm install -g @anthropic-ai/claude-code
 ```
 
